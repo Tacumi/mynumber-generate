@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -22,7 +23,7 @@ func (c Config) GetEnd() int {
 	return c.To
 }
 
-func (c Config) validate() error {
+func (c Config) Validate() error {
 	begin := c.From
 	end := c.GetEnd()
 
@@ -35,7 +36,7 @@ func (c Config) validate() error {
 	return nil
 }
 
-func qn(n int) int {
+func Qn(n int) int {
 	if 1 <= n && n <= 6 {
 		return n + 1
 	} else {
@@ -43,10 +44,10 @@ func qn(n int) int {
 	}
 }
 
-func calc_digits(input []int) int {
+func CalcDigits(input []int) int {
 	sum := 0
 	for idx, pn := range input {
-		sum = sum + (pn * qn(idx+1))
+		sum = sum + (pn * Qn(idx+1))
 	}
 
 	if remain := sum % 11; remain < 2 {
@@ -56,7 +57,23 @@ func calc_digits(input []int) int {
 	}
 }
 
-func generate_mynumber(conf Config) error {
+func WriteDataStream(w io.Writer, data []byte) error {
+	if _, err := w.Write(data); err != nil {
+		return err
+	}
+	return nil
+}
+
+func StringToMynumberDigitArray(digit_string string) [11]int {
+	var digits [11]int
+
+	for idx, char := range digit_string {
+		digits[10-idx] = int(char) - '0'
+	}
+	return digits
+}
+
+func GenerateMynumber(conf Config) error {
 	file, err := os.Create(conf.Output)
 	if err != nil {
 		return fmt.Errorf("Failed: %w", err)
@@ -70,14 +87,9 @@ func generate_mynumber(conf Config) error {
 	limit := conf.GetEnd()
 	for target := conf.From; target < limit; target++ {
 		digit_string := fmt.Sprintf("%011d", target)
-		var digits [11]int
-
-		for idx, char := range digit_string {
-			digits[10-idx] = int(char) - '0'
-		}
-
-		mynumber := fmt.Sprintf("%s%d\n", digit_string, calc_digits(digits[:]))
-		file.Write([]byte(mynumber))
+		digits := StringToMynumberDigitArray(digit_string)
+		mynumber := fmt.Sprintf("%s%d\n", digit_string, CalcDigits(digits[:]))
+		WriteDataStream(file, []byte(mynumber))
 
 		if conf.Debug {
 			fmt.Print(mynumber)
@@ -87,11 +99,13 @@ func generate_mynumber(conf Config) error {
 			fmt.Print("\rGenerated: ", target, " / ", limit)
 		}
 	}
-	fmt.Println()
+	if !conf.Quiet {
+		fmt.Println("\nComplete!")
+	}
 	return nil
 }
 
-func getConfig() (*Config, error) {
+func GetConfig() (*Config, error) {
 	var (
 		write_file_name = flag.String("o", "mynumber-list.txt", "output file name (default mynumber-list.txt)")
 		from            = flag.Int("f", 0, "from number (default 0)")
@@ -113,20 +127,20 @@ func getConfig() (*Config, error) {
 		conf.To = 0
 	}
 	conf.Output = *write_file_name
-	if err := conf.validate(); err != nil {
+	if err := conf.Validate(); err != nil {
 		return nil, fmt.Errorf("%s", "Invalid option combination")
 	}
 	return conf, nil
 }
 
 func main() {
-	conf, err := getConfig()
+	conf, err := GetConfig()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	if err := generate_mynumber(*conf); err != nil {
+	if err := GenerateMynumber(*conf); err != nil {
 		fmt.Println("Generation failed.")
 		return
 	}
