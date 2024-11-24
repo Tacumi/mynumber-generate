@@ -6,6 +6,11 @@ import (
 	"os"
 )
 
+type Config struct {
+	Debug bool
+	Quiet bool
+}
+
 func qn(n int) int {
 	if 1 <= n && n <= 6 {
 		return n + 1
@@ -27,7 +32,7 @@ func calc_digits(input []int) int {
 	}
 }
 
-func generate_mynumber(fn string, from int, to int, debug bool) error {
+func generate_mynumber(fn string, from int, to int, conf Config) error {
 	if from < 0 || from >= 100_000_000_000 ||
 		to < 0 || to >= 100_000_000_000 ||
 		from >= to {
@@ -53,8 +58,11 @@ func generate_mynumber(fn string, from int, to int, debug bool) error {
 		}
 		mynumber := fmt.Sprintf("%s%d\n", digit_string, calc_digits(digits[:]))
 
-		if debug {
+		if conf.Debug {
 			fmt.Print(mynumber)
+		}
+		if !conf.Quiet && target%10000 == 0 {
+			fmt.Print("\rGenerated: ", target, " / ", to)
 		}
 		file.Write([]byte(mynumber))
 	}
@@ -67,10 +75,15 @@ func main() {
 		from            = flag.Int("f", 0, "from number (default 0)")
 		to              = flag.Int("t", 100, "to number (default 100, limit 99,999,999,999)")
 		debug           = flag.Bool("d", false, "tee debug")
+		quiet           = flag.Bool("q", false, "quiet")
 	)
 	flag.Parse()
 
-	if err := generate_mynumber(*write_file_name, *from, *to, *debug); err != nil {
+	conf := new(Config)
+	conf.Debug = *debug
+	conf.Quiet = *quiet
+
+	if err := generate_mynumber(*write_file_name, *from, *to, *conf); err != nil {
 		return
 	}
 }
